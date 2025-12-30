@@ -1,0 +1,458 @@
+openapi: 3.0.3
+info:
+  title: Document Service API
+  version: 1.0.0
+servers:
+  - url: /
+
+tags:
+  - name: DocumentsList
+    description: Operations that create or list documents (user sees only their documents, admin sees all)
+  - name: Document
+    description: Operations that operate on a single existing document (with ownership checks)
+  - name: PublicDocuments
+    description: Public access to documents (no authentication required for public/by-link documents)
+
+x-common-error-responses: &common-error-responses
+  '400':
+    $ref: './.gen/common-api.yaml#/components/responses/ValidationError'
+  '401':
+    $ref: './.gen/common-api.yaml#/components/responses/UnauthorizedError'
+  '403':
+    $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+  '404':
+    $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+  '500':
+    $ref: './.gen/common-api.yaml#/components/responses/InternalServerError'
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/documents:
+    post:
+      tags: [DocumentsList]
+      summary: Upload document (multipart)
+      operationId: uploadDocumentMultipart
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DocumentUploadMetadata'
+                - type: object
+                  properties:
+                    file:
+                      type: string
+                      format: binary
+                  required: [file]
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '409':
+          $ref: './.gen/common-api.yaml#/components/responses/ConflictError'
+        <<: *common-error-responses
+    get:
+      tags: [DocumentsList]
+      summary: List documents
+      operationId: listDocuments
+      parameters:
+        - $ref: './.gen/common-api.yaml#/components/parameters/page'
+        - $ref: './.gen/common-api.yaml#/components/parameters/pageSize'
+        - $ref: './.gen/common-api.yaml#/components/parameters/sort'
+        - $ref: './.gen/common-api.yaml#/components/parameters/search'
+        - $ref: './.gen/common-api.yaml#/components/parameters/filter'
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted documents (admin only)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Document list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDocumentList'
+        <<: *common-error-responses
+
+  /api/documents/base64:
+    post:
+      tags: [DocumentsList]
+      summary: Upload document (base64 JSON)
+      operationId: uploadDocumentBase64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadBase64Request'
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '413':
+          description: Payload too large
+        <<: *common-error-responses
+
+  /api/documents/{uuid}/download:
+    get:
+      tags: [Document]
+      summary: Stream/download document content
+      operationId: streamDocumentByUuid
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Binary stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
+  /api/documents/{uuid}:
+    get:
+      tags: [Document]
+      summary: Get document metadata
+      operationId: getDocumentMetadata
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        <<: *common-error-responses
+    delete:
+      tags: [Document]
+      summary: Delete document
+      operationId: deleteDocument
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: permanent
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: './.gen/common-api.yaml#/components/schemas/SuccessfulResponse'
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        <<: *common-error-responses
+    patch:
+      tags: [Document]
+      summary: Update document metadata (name, tags, description, visibility)
+      operationId: updateDocumentMetadata
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpdateRequest'
+      responses:
+        '200':
+          description: Updated document metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        <<: *common-error-responses
+
+  /api/documents/{uuid}/generate-link:
+    post:
+      tags: [Document]
+      summary: Generate access link/token for BY_LINK documents
+      operationId: generateDocumentAccessLink
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateLinkRequest'
+      responses:
+        '200':
+          description: Link generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkResponse'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        <<: *common-error-responses
+
+  /api/public/documents/{uuid}:
+    get:
+      tags: [PublicDocuments]
+      summary: Get public document metadata (no auth required)
+      operationId: getPublicDocumentMetadata
+      security: []  # No authentication required
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Public document metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
+  /api/public/documents/{uuid}/download:
+    get:
+      tags: [PublicDocuments]
+      summary: Download public document (no auth required)
+      operationId: downloadPublicDocument
+      security: []  # No authentication required
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Binary stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
+  /api/public/documents/link/{token}:
+    get:
+      tags: [PublicDocuments]
+      summary: Access document by link token (no auth required)
+      operationId: accessDocumentByToken
+      security: []  # No authentication required
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Binary stream of the document content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
+components:
+  schemas:
+    Visibility:
+      type: string
+      enum: [PUBLIC, PRIVATE, BY_LINK]
+
+    UploadedByType:
+      type: string
+      enum: [USER, SYSTEM]
+
+    DocumentUploadMetadata:
+      type: object
+      description: Shared metadata fields for document uploads
+      properties:
+        ownerUserId:
+          type: string
+          format: uuid
+          description: User ID of the document owner (for admin/system creating documents on behalf of users). If not provided, authenticated user becomes owner.
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        description:
+          type: string
+          maxLength: 1000
+        tags:
+          type: string
+          description: Comma-separated list of tags (e.g. "tag1,tag2"). Tags will be normalized (trimmed, lower-cased) by the service. Maximum of 50 tags supported after splitting.
+          example: "passport,id-card,verified"
+        confirmReplace:
+          type: boolean
+          description: If true, replace existing document with same name/checksum
+
+    DocumentResponse:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        originalFilename:
+          type: string
+        size:
+          type: integer
+        extension:
+          type: string
+        contentType:
+          type: string
+        bucket:
+          type: string
+        objectKey:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        uploadedById:
+          type: string
+          format: uuid
+        uploadedByType:
+          $ref: '#/components/schemas/UploadedByType'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        checksum:
+          type: string
+        description:
+          type: string
+        tags:
+          type: string
+          description: Comma-separated list of tags returned by the service (e.g. "passport,id-card"). Clients may split this value if they require an array.
+          example: "passport,id-card,verified"
+        deleted:
+          type: boolean
+        deletedAt:
+          type: string
+          format: date-time
+        deletedBy:
+          type: string
+          format: uuid
+
+    UploadBase64Request:
+      allOf:
+        - $ref: '#/components/schemas/DocumentUploadMetadata'
+        - type: object
+          properties:
+            name:
+              type: string
+              description: Document name (will be used as filename if not provided)
+              minLength: 1
+              maxLength: 255
+            base64Data:
+              type: string
+              description: Base64-encoded file content
+            contentType:
+              type: string
+              description: MIME type of the file
+          required: [name, base64Data]
+
+    GenerateLinkRequest:
+      type: object
+      properties:
+        expiresInHours:
+          type: integer
+          description: Expiration time in hours for the generated access link. If omitted, defaults to 24 hours.
+          minimum: 1
+          example: 24
+
+    LinkResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        url:
+          type: string
+
+    DocumentUpdateRequest:
+      type: object
+      description: Fields to update on an existing document. Any null field will be ignored (left unchanged).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        tags:
+          type: string
+          description: Comma-separated list of tags (e.g. "tag1,tag2"). Passing null leaves tags unchanged; passing empty string clears tags.
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+
+    PaginatedDocumentList:
+      allOf:
+        - $ref: './.gen/common-api.yaml#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/DocumentResponse'

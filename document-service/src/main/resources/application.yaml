@@ -1,0 +1,34 @@
+server:
+  port: ${DOCUMENT-SERVICE-PORT:3002}
+
+spring:
+  application:
+    name: DOCUMENT-SERVICE
+  main:
+    banner-mode: off
+  jackson:
+    default-property-inclusion: non_null
+  config:
+    import: classpath:db-config.yaml
+  security:
+    white-list-urls: /actuator/health,/api/public/**
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+storage:
+  defaultBucket: ${S3_DEFAULT_BUCKET:documents}
+  s3:
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    region: ${S3_REGION:eu-west-1}
+    accessKey: ${S3_ACCESS_KEY}
+    secretKey: ${S3_SECRET_KEY}
+
+# Application specific configuration
+app:
+  maxUploadSize: ${MAX_UPLOAD_SIZE:104857600}  # 100MB default
+  allowedExtensions: ${ALLOWED_EXTENSIONS:pdf,docx,doc,txt,jpg,jpeg,png,gif,xlsx,xls,csv,zip}
+  stream:
+    buffer-size: ${STREAM_BUFFER_SIZE:8192}  # 8KB default
+  base-url: ${DOCUMENT_BASE_URL:http://localhost:${DOCUMENT-SERVICE-PORT:3003}}
