@@ -120,6 +120,8 @@ public class DocumentService {
 
             checkDocumentAccess(entity);
 
+            String oldChecksum = entity.getChecksum();
+
             entity.setOriginalFilename(file.getOriginalFilename());
             entity.setContentType(file.getContentType());
             entity.setExtension(extension);
@@ -140,7 +142,7 @@ public class DocumentService {
                 entity.setTags(normalizeTags(metadata.getTags()));
             }
 
-            if (checksum.equals(entity.getChecksum())) {
+            if (checksum.equals(oldChecksum)) {
                 repository.save(entity);
                 return toResponse(entity);
             }
@@ -194,7 +196,14 @@ public class DocumentService {
             if (!isReplacement) {
                 repository.delete(saved);
             }
-            throw ex;
+            throw ServiceException.of(DefaultExceptionReasonCodes.SERVER_ERROR,
+                    "Failed to upload document to storage: " + ex.getMessage());
+        } catch (Exception ex) {
+            if (!isReplacement) {
+                repository.delete(saved);
+            }
+            throw ServiceException.of(DefaultExceptionReasonCodes.SERVER_ERROR,
+                    "Unexpected error during document upload: " + ex.getMessage());
         }
 
         return toResponse(saved);
@@ -373,12 +382,8 @@ public class DocumentService {
     }
 
     private String buildDocumentAccessUrl(String token) {
-        String base = documentConfig.getBaseUrl();
+        String normalizedBase = documentConfig.getNormalizedBaseUrl();
         String path = "/api/public/documents/link/" + token;
-        if (base == null || base.isBlank()) {
-            return path;
-        }
-        String normalizedBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         return normalizedBase + path;
     }
 
@@ -527,6 +532,8 @@ public class DocumentService {
                 throw ServiceException.of(DefaultExceptionReasonCodes.FORBIDDEN,
                         "You don't have permission to access this document");
             }
+
+            return;
         }
 
         // BY_LINK documents - need valid token (handled elsewhere) or ownership
@@ -559,7 +566,7 @@ public class DocumentService {
         r.setUpdatedAt(e.getUpdatedAt() == null ? null : OffsetDateTime.ofInstant(e.getUpdatedAt(), ZoneOffset.UTC));
         r.setChecksum(e.getChecksum());
         r.setDescription(e.getDescription());
-        // API expects tags as a comma-separated string; join normalized tag set preserving insertion order
+        
         if (e.getTags() == null || e.getTags().isEmpty()) {
             r.setTags(null);
         } else {
@@ -571,6 +578,13 @@ public class DocumentService {
             r.setDeletedBy(e.getDeletedBy());
             r.setDeletedAt(e.getDeletedAt() == null ? null : OffsetDateTime.ofInstant(e.getDeletedAt(), ZoneOffset.UTC));
         }
+
+        String normalizedBase = documentConfig.getNormalizedBaseUrl();
+        boolean isPublic = e.getVisibility() == DocumentEntity.Visibility.PUBLIC;
+        String pathPrefix = isPublic ? "/api/public/documents/" : "/api/documents/";
+        
+        r.setViewUrl(normalizedBase + pathPrefix + e.getUuid() + "/view");
+        r.setDownloadUrl(normalizedBase + pathPrefix + e.getUuid() + "/download");
 
         return r;
     }

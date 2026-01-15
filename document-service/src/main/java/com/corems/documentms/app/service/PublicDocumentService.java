@@ -6,6 +6,7 @@ import com.corems.common.security.service.TokenProvider;
 import com.corems.documentms.api.model.DocumentResponse;
 import com.corems.documentms.api.model.UploadedByType;
 import com.corems.documentms.api.model.Visibility;
+import com.corems.documentms.app.config.DocumentConfig;
 import com.corems.documentms.app.entity.DocumentAccessTokenEntity;
 import com.corems.documentms.app.entity.DocumentEntity;
 import com.corems.documentms.app.model.DocumentStreamResult;
@@ -33,15 +34,18 @@ public class PublicDocumentService {
     private final DocumentAccessTokenRepository tokenRepository;
     private final S3StorageService storage;
     private final TokenProvider tokenProvider;
+    private final DocumentConfig documentConfig;
 
     public PublicDocumentService(DocumentRepository repository,
                                  DocumentAccessTokenRepository tokenRepository,
                                  S3StorageService storage,
-                                 TokenProvider tokenProvider) {
+                                 TokenProvider tokenProvider,
+                                 DocumentConfig documentConfig) {
         this.repository = repository;
         this.tokenRepository = tokenRepository;
         this.storage = storage;
         this.tokenProvider = tokenProvider;
+        this.documentConfig = documentConfig;
     }
 
     @Transactional(readOnly = true)
@@ -174,11 +178,20 @@ public class PublicDocumentService {
         r.setUpdatedAt(e.getUpdatedAt() == null ? null : OffsetDateTime.ofInstant(e.getUpdatedAt(), ZoneOffset.UTC));
         r.setChecksum(e.getChecksum());
         r.setDescription(e.getDescription());
+        
         if (e.getTags() == null || e.getTags().isEmpty()) {
             r.setTags(null);
         } else {
             r.setTags(String.join(",", e.getTags()));
         }
+
+        String normalizedBase = documentConfig.getNormalizedBaseUrl();
+        boolean isPublic = e.getVisibility() == DocumentEntity.Visibility.PUBLIC;
+        String pathPrefix = isPublic ? "/api/public/documents/" : "/api/documents/";
+        
+        r.setViewUrl(normalizedBase + pathPrefix + e.getUuid() + "/view");
+        r.setDownloadUrl(normalizedBase + pathPrefix + e.getUuid() + "/download");
+
         return r;
     }
 }

@@ -47,13 +47,18 @@ public class DocumentController implements DocumentApi {
     }
 
     @Override
-    @RequireRoles(CoreMsRoles.DOCUMENT_MS_ADMIN)
     public ResponseEntity<SuccessfulResponse> deleteDocument(UUID uuid, Optional<Boolean> permanent) {
         return ResponseEntity.ok(service.delete(uuid, permanent.orElse(false)));
     }
 
     @Override
-    public ResponseEntity<Resource> streamDocumentByUuid(UUID uuid) {
+    public ResponseEntity<Resource> viewDocumentByUuid(UUID uuid) {
+        DocumentStreamResult streamResult = service.prepareStreamResponse(uuid);
+        return StreamResponseHelper.buildStreamResponse(streamResult, documentConfig, "inline");
+    }
+
+    @Override
+    public ResponseEntity<Resource> downloadDocumentByUuid(UUID uuid) {
         DocumentStreamResult streamResult = service.prepareStreamResponse(uuid);
         return StreamResponseHelper.buildStreamResponse(streamResult, documentConfig, "attachment");
     }

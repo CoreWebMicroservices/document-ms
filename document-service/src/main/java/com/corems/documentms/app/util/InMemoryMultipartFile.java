@@ -9,7 +9,6 @@ import java.io.InputStream;
 
 /**
  * Simple in-memory MultipartFile implementation for base64 uploads.
- * Avoids using MockMultipartFile in production code.
  */
 public class InMemoryMultipartFile implements MultipartFile {
 

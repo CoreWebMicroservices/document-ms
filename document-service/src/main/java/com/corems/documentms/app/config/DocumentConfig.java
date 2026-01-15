@@ -55,6 +55,17 @@ public class DocumentConfig {
         return baseUrl;
     }
 
+    /**
+     * Get normalized base URL (removes trailing slash if present).
+     * Returns empty string if baseUrl is null or blank.
+     */
+    public String getNormalizedBaseUrl() {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return "";
+        }
+        return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    }
+
     @Getter
     @Setter
     public static class StreamConfig {

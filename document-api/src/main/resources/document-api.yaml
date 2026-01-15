@@ -102,11 +102,11 @@ paths:
           description: Payload too large
         <<: *common-error-responses
 
-  /api/documents/{uuid}/download:
+  /api/documents/{uuid}/view:
     get:
       tags: [Document]
-      summary: Stream/download document content
-      operationId: streamDocumentByUuid
+      summary: View document content inline (for browser display)
+      operationId: viewDocumentByUuid
       parameters:
         - name: uuid
           in: path
@@ -116,7 +116,33 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Binary stream
+          description: Binary stream with inline content-disposition
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
+  /api/documents/{uuid}/download:
+    get:
+      tags: [Document]
+      summary: Download document content (triggers download)
+      operationId: downloadDocumentByUuid
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Binary stream with attachment content-disposition
           content:
             application/octet-stream:
               schema:
@@ -258,6 +284,33 @@ paths:
           $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
         <<: *common-error-responses
 
+  /api/public/documents/{uuid}/view:
+    get:
+      tags: [PublicDocuments]
+      summary: View public document inline (no auth required)
+      operationId: viewPublicDocument
+      security: []  # No authentication required
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Binary stream with inline content-disposition
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: './.gen/common-api.yaml#/components/responses/NotFoundError'
+        '403':
+          $ref: './.gen/common-api.yaml#/components/responses/ForbiddenError'
+        <<: *common-error-responses
+
   /api/public/documents/{uuid}/download:
     get:
       tags: [PublicDocuments]
@@ -273,7 +326,7 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Binary stream
+          description: Binary stream with attachment content-disposition
           content:
             application/octet-stream:
               schema:
@@ -386,6 +439,14 @@ components:
           type: string
           description: Comma-separated list of tags returned by the service (e.g. "passport,id-card"). Clients may split this value if they require an array.
           example: "passport,id-card,verified"
+        viewUrl:
+          type: string
+          description: Full URL to view the document inline (includes domain)
+          example: "http://localhost:3002/api/documents/bd032c94-b17b-498b-af66-f1131b9eb23e/view"
+        downloadUrl:
+          type: string
+          description: Full URL to download the document (includes domain)
+          example: "http://localhost:3002/api/documents/bd032c94-b17b-498b-af66-f1131b9eb23e/download"
         deleted:
           type: boolean
         deletedAt:
