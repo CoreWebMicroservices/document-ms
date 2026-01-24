@@ -9,13 +9,15 @@ spring:
   jackson:
     default-property-inclusion: non_null
   config:
-    import: classpath:db-config.yaml
-  security:
-    white-list-urls: /actuator/health,/api/public/**
+    import: classpath:db-config.yaml, security-config.yaml
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+corems:
+  security:
+    whitelist: /actuator/health,/api/public/**
 
 storage:
   defaultBucket: ${S3_DEFAULT_BUCKET:documents}
