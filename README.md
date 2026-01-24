@@ -2,7 +2,7 @@
 
 > **Part of [Core Microservices Project](https://github.com/CoreWebMicroservices/corems-project)** - Enterprise-grade microservices toolkit for rapid application development
 
-File upload, storage, and access control microservice for CoreMS.
+Document management service for CoreMS.
 
 ## Features
 
