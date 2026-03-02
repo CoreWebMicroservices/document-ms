@@ -10,7 +10,7 @@
         <groupId>com.corems</groupId>
         <artifactId>parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
-        <relativePath/> <!-- lookup from repository -->
+        <relativePath/>
     </parent>
 
     <artifactId>document-ms</artifactId>
@@ -22,4 +22,12 @@
         <module>document-client</module>
         <module>document-service</module>
     </modules>
+
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/CoreWebMicroservices/corems-project</url>
+        </repository>
+    </repositories>
+
 </project>
